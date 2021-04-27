@@ -15,10 +15,10 @@ public class RPlayerMove : MonoBehaviour
     private Transform groundCehck;
     private Rigidbody rb;
     public bool isGrounded;
-    private Vector3 playerDirect = Vector3.zero;
+    public Vector3 playerDirect {get; private set;} = Vector3.zero;
     private bool jumpHeld = false;
     private Transform vCam;
-    private Vector2 wasdIn = Vector2.zero;
+    public Vector2 wasdIn {get; private set;} = Vector2.zero;
     private float lastJump = 0;
     private float jumpCooldown = .3F;
     [Min(0)] public float surfaceJumpweight = .17F;
@@ -145,8 +145,8 @@ public class RPlayerMove : MonoBehaviour
         float scaledCounterGrav = wallCounterGrav * (horVEl.magnitude/walkSpeed);
         rb.AddForce(new Vector3(0,scaledCounterGrav,0), ForceMode.Acceleration);
 
-        //if falling then curve the vertical velocity towards parallel with the wall
-        if(rb.velocity.y < 0){
+        //if falling with some horizontal velocity then curve the vertical velocity towards parallel with the wall
+        if(rb.velocity.y < 0 && horVEl.magnitude > .1F){
             //find which direction along the wall better fits the horVEl
             Vector3 along = Vector3.Cross(groundInf.normal, new Vector3(0,1,0));
             if(Vector3.Dot(along, horVEl) < 0) along = Vector3.Cross(groundInf.normal, new Vector3(0,-1,0));
@@ -154,7 +154,7 @@ public class RPlayerMove : MonoBehaviour
             //create a curved falling velocity towards along the wall
             //curving will be scaled by horizontal speed
             Vector3 fallCurve = new Vector3(0,rb.velocity.y,0);
-            fallCurve = Vector3.Lerp(fallCurve.normalized, along, wallFallCurving * (horVEl.magnitude/walkSpeed)) * fallCurve.magnitude;
+            fallCurve = Vector3.Lerp(fallCurve.normalized, along, wallFallCurving) * fallCurve.magnitude;
 
             //add the curved falling velocity in place of the uncurved
             rb.velocity = horVEl + fallCurve;
