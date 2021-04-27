@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Test : MonoBehaviour
 {
+    public Vector3 worldPos = Vector3.zero;
     // Start is called before the first frame update
     void Start()
     {
@@ -11,8 +12,7 @@ public class Test : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
-    {
-        
+    void Update(){
+        worldPos = transform.position;
     }
 }
