@@ -11,16 +11,20 @@ public class GrapplingGun : MonoBehaviour {
     private SpringJoint joint;
     private Quaternion desiredRotation;
     private float rotationSpeed = 5f;
-    public  InputActionAsset iAA;
+    public  PlayerInput pIn;
     private Quaternion startRot;
     private Transform connectedT;
 
     void Start(){
         lr = gunTip.GetComponent<LineRenderer>();
-        iAA.FindAction("Grapple").performed += _ => StartGrapple();
-        iAA.FindAction("Grapple").canceled += _ => StopGrapple();
+        pIn.actions.FindAction("Grapple").performed += _ => StartGrapple();
+        pIn.actions.FindAction("Grapple").canceled += _ => StopGrapple();
 
         startRot = transform.localRotation;
+    }
+    void OnDisable(){
+        pIn.actions.FindAction("Grapple").performed -= _ => StartGrapple();
+        pIn.actions.FindAction("Grapple").canceled -= _ => StopGrapple();
     }
 
     void Update(){

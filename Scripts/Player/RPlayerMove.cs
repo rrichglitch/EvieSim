@@ -6,30 +6,39 @@ using UnityEngine.InputSystem;
 public class RPlayerMove : MonoBehaviour
 {
     [Min(0)] public float walkSpeed = 20;
+    // [Min(0)] public float airSpeed = 20;
+    private float maxSpeed;
     [Min(0)] public float force = 40;
-    [Min(0)] public float jumpBoost = 10F;
+    [Min(0)] public int stoppingPower = 2;
+    [Min(0)] public float jump = 10F;
+    [Min(0)] public float jumpScaled = 10F;
     [Min(0)] public float groundDist = .4F;
     [Min(0)] public float wallDist = .4F;
     public LayerMask groundMask;
-    [Range(0,1)] public float horizontalCurving = .1F;
+    [Range(0,1)] public float velocityCurving = .1F;
     private Transform groundCehck;
     private Rigidbody rb;
-    public bool isGrounded;
+    [Min(0)] public float groundFric = 2;
+    private bool isGrounded = false;
+    private bool wallRunning = false;
     public Vector3 playerDirect {get; private set;} = Vector3.zero;
+    public Vector3 camDirect {get; private set;} = Vector3.zero;
     private bool jumpHeld = false;
     private Transform vCam;
     public Vector2 wasdIn {get; private set;} = Vector2.zero;
     private float lastJump = 0;
     private float jumpCooldown = .3F;
-    [Min(0)] public float surfaceJumpweight = .17F;
+    [Range(0,1)] public float surfaceJumpweight = .17F;
     [Min(0)] public float wallCounterGrav = 10;
     [Range(0,1)] public float wallFallCurving = .1F;
+    public float currentSpeed = 0;
 
     // Start is called before the first frame update
     void Start(){
         rb = GetComponent<Rigidbody>();
         groundCehck = transform.Find("GroundCheck");
         vCam = transform.Find("VCam");
+        maxSpeed = walkSpeed;
     }
     void OnMove(InputValue  ctx){
         //player direct is the conversion from relative wasd to world direction
@@ -39,19 +48,20 @@ public class RPlayerMove : MonoBehaviour
     void OnJump(InputValue  ctx){
         jumpHeld = ctx.isPressed;
     }
-    void OnLook(InputValue  ctx){
-        vCam.SendMessage("OnLook", ctx);
-    }
+    // void OnLook(InputValue  ctx){
+    //     vCam.SendMessage("OnLook", ctx);
+    // }
 
     //force based movement
     void FixedUpdate(){
         //convert the last input to an absolute player direction
         //do this every frame or input will not seem to update with character rotation
         playerDirect = transform.TransformDirection(new Vector3(wasdIn.x, 0, wasdIn.y));
+        camDirect = Quaternion.AngleAxis(vCam.eulerAngles.x, transform.right)*playerDirect;
 
         //get the current horizontal velocity for multiple uses
-        Vector3 horVEl = rb.velocity;
-        horVEl.y = 0;
+        Vector3 horVel = rb.velocity;
+        horVel.y = 0;
 
         //separate checks for ground and walls
         // isGrounded = Physics.CheckSphere(groundCehck.position, groundDist, groundMask);
@@ -63,18 +73,24 @@ public class RPlayerMove : MonoBehaviour
 
         //check for wall if not on ground
         if(!isGrounded){
-            isGrounded = (Physics.OverlapSphereNonAlloc(groundCehck.position, wallDist, collidResults, groundMask) > 0);
+            wallRunning = (Physics.OverlapSphereNonAlloc(groundCehck.position, wallDist, collidResults, groundMask) > 0);
             //if on a wall then start wall running
-            if(isGrounded){
-                WallRun(collidResults[0], ref groundInf, horVEl);
+            if(wallRunning){
+                WallRun(collidResults[0], ref groundInf, horVel);
             }
         }
+        else{
+            wallRunning = false;
+
+            //add ground friction
+            rb.AddForce(-rb.velocity.normalized * groundFric, ForceMode.Acceleration);
+        }
             
-        //jump
-        if(isGrounded && jumpHeld && Time.time - lastJump >= jumpCooldown){
-            Vector3 calcJump = transform.up*jumpBoost;
+        //jump if on the ground or a wall
+        if((isGrounded || wallRunning) && jumpHeld && Time.time - lastJump >= jumpCooldown){
+            Vector3 calcJump = transform.up*jump;
             if(groundInf.normal != null){
-                calcJump = Vector3.Lerp(transform.up, groundInf.normal, surfaceJumpweight)*jumpBoost;
+                calcJump = Vector3.Lerp(transform.up, groundInf.normal, surfaceJumpweight)*jump;
                 // Debug.Log("wall surface normal is "+groundInf.normal);
             }
             
@@ -82,20 +98,38 @@ public class RPlayerMove : MonoBehaviour
             lastJump = Time.time;
         }
 
+        //add force to keep from moving
+        if(playerDirect.magnitude==0 && horVel.magnitude > 0.001){
+            Vector3 smoothHorVel = horVel.normalized* Mathf.Sqrt(horVel.magnitude/walkSpeed)*walkSpeed;
+            rb.AddForce(-Vector3.ClampMagnitude(smoothHorVel, walkSpeed) * stoppingPower, ForceMode.Acceleration);
+            // Debug.Log("smoothedVel is "+smoothHorVel+" while velocity is "+rb.velocity);
+        }
         //add force to move
-        if(rb.velocity.magnitude < walkSpeed) rb.AddForce(playerDirect*force, ForceMode.Acceleration);
+        else if(horVel.magnitude < maxSpeed) rb.AddForce(playerDirect*force, ForceMode.Acceleration);
         //only allow force added against a top+ speed velocity
         else{
-            float dotProd = Vector3.Dot(horVEl.normalized, playerDirect);
+            float dotProd = Vector3.Dot(horVel.normalized, playerDirect);
             float pDirectMod = (2-(dotProd+1))/2;
             rb.AddForce(playerDirect*force*pDirectMod);
             // Debug.Log("dotProd is "+dotProd);
             // if(dotProd > .5) Debug.Log(horVEl.normalized+" compared to "+playerDirect);
         }
         
-        //make a new curved velocity horizontal velocity and set it
-        horVEl = Vector3.Lerp(horVEl, playerDirect * horVEl.magnitude, horizontalCurving);
-        rb.velocity = new Vector3(horVEl.x, rb.velocity.y, horVEl.z);
+        //make a new curved velocity and set it
+        float wasdDegrees = Mathf.Atan2(wasdIn.x, wasdIn.y)*Mathf.Rad2Deg;
+        if(wallRunning){
+            Vector3 ampedVertCamDirect = camDirect;
+            ampedVertCamDirect.y = Mathf.Sqrt(camDirect.y);
+            Vector3 curvedVel = Vector3.Lerp(rb.velocity, ampedVertCamDirect.normalized * rb.velocity.magnitude, velocityCurving*(horVel.magnitude/walkSpeed));
+            rb.velocity = curvedVel;
+        }
+        //if not wallrunning then velocity curning should only be horizontal
+        else{
+            horVel = Vector3.Lerp(horVel, playerDirect * horVel.magnitude, velocityCurving);
+            rb.velocity = new Vector3(horVel.x, rb.velocity.y, horVel.z);
+        }
+
+        currentSpeed = rb.velocity.magnitude;
 
         //moveposition based movement
     }
@@ -142,7 +176,7 @@ public class RPlayerMove : MonoBehaviour
         }
 
         //add counter gravity scaled by current horizontal velocity
-        float scaledCounterGrav = wallCounterGrav * (horVEl.magnitude/walkSpeed);
+        float scaledCounterGrav = wallCounterGrav * Mathf.Clamp((horVEl.magnitude/walkSpeed),0,1);
         rb.AddForce(new Vector3(0,scaledCounterGrav,0), ForceMode.Acceleration);
 
         //if falling with some horizontal velocity then curve the vertical velocity towards parallel with the wall

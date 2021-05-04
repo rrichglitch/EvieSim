@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 //put this script on the PlayerContainer holding the camera and body
 public class Blink : MonoBehaviour
 {
-    public InputActionAsset iAA;
+    public PlayerInput pIn;
     private Vector3 portTo;
     private bool held = false;
     public float maxDist = 10;
@@ -22,8 +22,10 @@ public class Blink : MonoBehaviour
         player = transform.Find("PlayerBody");
         body = player.GetComponent<Rigidbody>();
 
-        iAA.FindAction("Blink").performed += _ => Target();
-        iAA.FindAction("Blink").canceled += _ => Port();
+        if(pIn != null){
+            pIn.actions.FindAction("Blink").performed += _ => Target();
+            pIn.actions.FindAction("Blink").canceled += _ => Port();
+        }
     }
 
     // Update is called once per frame

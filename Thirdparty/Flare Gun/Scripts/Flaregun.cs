@@ -1,8 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
 using UnityEngine.InputSystem;
+using MLAPI;
+using MLAPI.Messaging;
 
-public class Flaregun : MonoBehaviour {
+public class Flaregun : NetworkBehaviour {
 	
 	public Rigidbody flareBullet;
 	public Transform barrelEnd;
@@ -14,20 +16,37 @@ public class Flaregun : MonoBehaviour {
 	public int maxSpareRounds = 5;
 	public int spareRounds = 3;
 	public int currentRound = 0;
-	public InputActionAsset iAA;
+	public PlayerInput pIn;
 	public Rigidbody holder;
 	//start is called before the first update
 	void Start(){
-		InputAction fire = iAA.FindAction("Fire");
-		fire.performed += _ => Fire();
+		// foreach(InputActionMap iam in iAA.actionMaps){
+		// 	Debug.Log(iam.name);
+		// }
+		// if(iAA.devices == null) Debug.Log("there are no devices!");
+		// else
+		// foreach(InputDevice iam in iAA.devices){
+		// 	Debug.Log(iam.name);
+		// }
+		if(pIn != null){
+			InputAction fire = pIn.actions.FindAction("Fire");
+			fire.performed += _ => Fire();
 
-		InputAction reload = iAA.FindAction("Reload");
-		reload.performed += _ => Reload();
+			InputAction reload = pIn.actions.FindAction("Reload");
+			reload.performed += _ => Reload();
+		}
 	}
+    // void OnDisable(){
+    //     pIn.actions.FindAction("Grapple").performed -= _ => Fire();
+    //     pIn.actions.FindAction("Reload").performed -= _ => Reload();
+    // }
 	void Fire(){
 		if(!GetComponent<Animation>().isPlaying){
 			if(currentRound > 0){
-				Shoot();
+				ShootServerRpc();
+				currentRound--;
+				GetComponent<Animation>().CrossFade("Shoot");
+				GetComponent<AudioSource>().PlayOneShot(flareShotSound);
 			}else{
 				GetComponent<Animation>().Play("noAmmo");
 				GetComponent<AudioSource>().PlayOneShot(noAmmoSound);
@@ -55,25 +74,40 @@ public class Flaregun : MonoBehaviour {
 	// 	}
 	
 	// }
-	
-	void Shoot()
-	{
-		currentRound--;
+	[ServerRpc]
+	void ShootServerRpc(){
+		// Debug.Log("shoot called!");
+		Vector3 barrelEndPos = barrelEnd.position;
+		Quaternion barrelEndRot = barrelEnd.rotation;
+		
+		Rigidbody bulletInstance;
+		bulletInstance = Instantiate(flareBullet,barrelEndPos,barrelEndRot) as Rigidbody; //INSTANTIATING THE FLARE PROJECTILE
+		Physics.IgnoreCollision(bulletInstance.GetComponent<Collider>(), holder.GetComponent<Collider>());
+		
+		bulletInstance.velocity = holder.velocity + ((barrelEndRot *Vector3.forward) * bulletSpeed); //ADDING FORWARD VELOCITY TO THE FLARE PROJECTILE
+
+		if(!(IsServer || IsHost)) Debug.Log("why are you boooming!?");
+		GameObject go  = bulletInstance.gameObject;
+		if(go != null) go.GetComponent<NetworkObject>().Spawn();
+
+		go = Instantiate(muzzleParticles, barrelEndPos,barrelEndRot);
+		go.GetComponent<NetworkObject>().Spawn();
+		Destroy(go,3);	//INSTANTIATING THE GUN'S MUZZLE SPARKS	
+
+		ShootClientRpc();
+	}
+
+	[ClientRpc]
+	void ShootClientRpc(){
+
+		if(IsOwner) return;
 		if(currentRound <= 0){
 			currentRound = 0;
 		}
-		
-			GetComponent<Animation>().CrossFade("Shoot");
-			GetComponent<AudioSource>().PlayOneShot(flareShotSound);
-		
+		currentRound--;
+		GetComponent<Animation>().CrossFade("Shoot");
+		GetComponent<AudioSource>().PlayOneShot(flareShotSound);
 			
-			Rigidbody bulletInstance;			
-			bulletInstance = Instantiate(flareBullet,barrelEnd.position,barrelEnd.rotation) as Rigidbody; //INSTANTIATING THE FLARE PROJECTILE
-			Physics.IgnoreCollision(bulletInstance.GetComponent<Collider>(), holder.GetComponent<Collider>());
-			
-			bulletInstance.velocity = holder.velocity + (barrelEnd.forward * bulletSpeed); //ADDING FORWARD VELOCITY TO THE FLARE PROJECTILE
-
-			Destroy(Instantiate(muzzleParticles, barrelEnd.position,barrelEnd.rotation),3);	//INSTANTIATING THE GUN'S MUZZLE SPARKS	
 	}
 	
 	void Reload(){

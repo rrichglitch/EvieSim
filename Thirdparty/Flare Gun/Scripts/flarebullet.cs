@@ -1,7 +1,9 @@
 ﻿using UnityEngine;
 using System.Collections;
+using MLAPI;
+using MLAPI.Messaging;
 
-public class flarebullet : MonoBehaviour {
+public class flarebullet : NetworkBehaviour {
 			
 
 	private Light flarelight;
@@ -55,16 +57,20 @@ public class flarebullet : MonoBehaviour {
 		myCoroutine = true;
 		yield return new WaitForSeconds(flareTimer);
 		myCoroutine = false;
-		Boom();
+		BoomServerRpc();
 	}
 
 	void OnCollisionEnter(Collision collis){
 		// Debug.Log(collis.collider.name);
-		Boom();
+		BoomServerRpc();
 	}
 
-	void Boom(){
-		Destroy(Instantiate(explosion,transform.position,transform.rotation),4);
+	[ServerRpc]
+	void BoomServerRpc(){
+		if(!(IsServer || IsHost)) Debug.Log("why are you boooming!?");
+		GameObject go = Instantiate(explosion,transform.position,transform.rotation);
+		go.GetComponent<NetworkObject>().Spawn();
+		Destroy(go,4);
 		Destroy(gameObject, .1F);
 	}
 }

@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 
 public class OmniDash : MonoBehaviour
 {
-    public InputActionAsset iAA;
+    public PlayerInput pIn;
     public RPlayerMove moveScript;
     public Transform cam;
     public float speed = 30;
@@ -14,7 +14,7 @@ public class OmniDash : MonoBehaviour
     private bool dashing = false;
     private Vector3 dashDirection;
     private Rigidbody rb;
-    private float cutOut;
+    private Vector3 cutOut;
     private float speedToAdd;
     public int maxCharges = 2;
     public int charges = 2;
@@ -23,7 +23,7 @@ public class OmniDash : MonoBehaviour
     // [SerializeField, Range(0,1)] private float maintainVelocity = .5F;
     // Start is called before the first frame update
     void Start(){
-        iAA.FindAction("Dash").performed += _ => Dash();
+        pIn.actions.FindAction("Dash").performed += _ => Dash();
         rb = GetComponent<Rigidbody>();
     }
 
@@ -35,7 +35,7 @@ public class OmniDash : MonoBehaviour
             else startCooldown = Time.time;
         }
         if(dashing){
-            rb.velocity = dashDirection*(cutOut+speedToAdd);
+            rb.velocity = cutOut+dashDirection*speedToAdd;
         }
     }
     void Dash(){
@@ -45,11 +45,15 @@ public class OmniDash : MonoBehaviour
             dashDirection = Mathf.Abs(wasdDegrees) < 45? cam.forward: moveScript.playerDirect;
 
             //get "cut out" of current velocity aligned with dash direction
-            cutOut = Vector3.Dot(dashDirection, rb.velocity.normalized) * rb.velocity.magnitude;
+            cutOut.x = dashDirection.x*rb.velocity.x > 0? rb.velocity.x: 0;
+            cutOut.y = dashDirection.y*rb.velocity.y > 0? rb.velocity.y: 0;
+            cutOut.z = dashDirection.z*rb.velocity.z > 0? rb.velocity.z: 0;
+
+            cutOut = dashDirection * cutOut.magnitude;
 
             //calculate the speed to add to the cutout based on how fast the cutOut already is
             //as not to dash any faster than double the dash speed
-            speedToAdd = cutOut <= speed? speed: Mathf.Lerp(speed,0,(cutOut-speed)/speed);
+            speedToAdd = Mathf.Lerp(0,speed,(speed-cutOut.magnitude)/speed);
 
             charges--;
             startCooldown = Time.time;
@@ -60,6 +64,6 @@ public class OmniDash : MonoBehaviour
     IEnumerator DashOff(){
         yield return new WaitForSeconds(duration);
         dashing = false;
-        rb.velocity = dashDirection*(cutOut+(speedToAdd*endMod));;
+        rb.velocity = cutOut+dashDirection*(speedToAdd*endMod);
     }
 }
