@@ -749,7 +749,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: f1f37da81f9734f4486443a4b2488c5e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -813,7 +813,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00b1a29c00ef2c24d8f35e47e0fb4e2c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  walkSpeed: 16
+  walkSpeed: 17
   force: 30
   stoppingPower: 3
   jump: 30
@@ -824,8 +824,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 65
   velocityCurving: 0.07
-  groundFric: 2
-  surfaceJumpweight: 0.75
+  groundFric: 4
+  surfaceJumpweight: 0.7
   wallCounterGrav: 10
   wallFallCurving: 0.1
   currentSpeed: 0
@@ -849,7 +849,7 @@ MonoBehaviour:
   endMod: 0.3
   maxCharges: 1
   charges: 1
-  cooldown: 3
+  cooldown: 2.5
 --- !u!114 &214797107018462492
 MonoBehaviour:
   m_ObjectHideFlags: 0

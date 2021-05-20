@@ -173,7 +173,7 @@
                 {
                     "name": "",
                     "id": "ed44f21c-bfed-47e4-99de-ae8995971015",
-                    "path": "<Mouse>/rightButton",
+                    "path": "<Keyboard>/2",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -195,7 +195,7 @@
                 {
                     "name": "",
                     "id": "7189e203-8516-4365-9d44-1e33ba5ab742",
-                    "path": "<Keyboard>/2",
+                    "path": "<Mouse>/rightButton",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
